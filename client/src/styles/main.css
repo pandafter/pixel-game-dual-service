@@ -5,11 +5,22 @@
   src: url('https://fonts.gstatic.com/s/pressstart2p/v12/e3t4euO8T-267oIAQAu6jDQyK1zJv_xHpg.ttf') format('truetype');
 }
 
-:root, html {
+:root, html, body {
+  margin: 0;
+  padding: 0;
+  overflow: hidden;
   touch-action: none;
-  -ms-touch-action: none;
+  overscroll-behavior: none;
+  height: 100%;
+  width: 100%;
+  user-select: none;
+  -webkit-user-select: none;
   -webkit-touch-callout: none;
-  
+  -webkit-tap-highlight-color: transparent;
+}
+
+button {
+  touch-action: manipulation;
 }
 
 

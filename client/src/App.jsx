@@ -5,11 +5,11 @@ import detectDevice from './utils/detectDevice';
 import './index.css';
 
 export default function App() {
-
   const isMobile = detectDevice();
 
   const [userID, setUserID] = useState(localStorage.getItem('userID') || '');
   const [playerName, setPlayerName] = useState(localStorage.getItem('playerName') || '');
+
   const getValidColor = () => {
     const storedColor = localStorage.getItem('playerColor');
     if (storedColor && /^#[0-9A-Fa-f]{6}$/.test(storedColor)) {
@@ -19,6 +19,14 @@ export default function App() {
   };
 
   const [playerColor, setPlayerColor] = useState(getValidColor());
+
+  // Generar un playerID solo si es móvil (y una sola vez)
+  const [playerID] = useState(() => {
+    if (isMobile) {
+      return 'player-' + Math.random().toString(36).substr(2, 9);
+    }
+    return null;
+  });
 
   const [submitted, setSubmitted] = useState(false);
   const [role, setRole] = useState(null);
@@ -30,23 +38,22 @@ export default function App() {
 
     localStorage.setItem('userID', userID);
 
-    // Guardar sólo si es móvil, para desktop no guardamos nombre/color porque no se usan
     if (isMobile) {
       localStorage.setItem('playerName', playerName);
       localStorage.setItem('playerColor', playerColor);
     } else {
-      setPlayerName(''); // Forzar vacío en desktop
-      setPlayerColor('#00ff99'); // Default color for desktop
+      setPlayerName('');
+      setPlayerColor('#00ff99');
     }
 
     setSubmitted(true);
   };
 
   useEffect(() => {
-  if (!submitted) return;
+    if (!submitted) return;
 
     try {
-      ws.current = new WebSocket('ws://192.168.1.17:3001');
+      ws.current = new WebSocket('ws://192.168.137.37:3001');
 
       ws.current.onopen = () => {
         console.log('✅ WebSocket opened');
@@ -54,6 +61,7 @@ export default function App() {
           JSON.stringify({
             action: 'join',
             userID,
+            playerID: isMobile ? playerID : undefined, // SOLO móviles lo mandan
             isMobile,
             playerName: isMobile ? playerName : '',
             playerColor: isMobile ? playerColor : '#00ff99',
@@ -90,7 +98,7 @@ export default function App() {
     };
   }, [submitted]);
 
-
+  // UI del formulario de login
   if (!submitted) {
     return (
       <div className="login-container">
@@ -132,7 +140,6 @@ export default function App() {
                 }}
               />
 
-              {/* Contenedor para etiqueta, texto encima, cuadrito color y botón en fila */}
               <div
                 style={{
                   display: 'flex',
@@ -142,8 +149,6 @@ export default function App() {
                   marginBottom: 20,
                 }}
               >
-
-                {/* Fila con label, cuadrito color y botón */}
                 <div
                   style={{
                     display: 'flex',
@@ -153,7 +158,6 @@ export default function App() {
                     width: '100%',
                   }}
                 >
-                  
                   <button
                     type="submit"
                     style={{
@@ -168,15 +172,15 @@ export default function App() {
                       borderRadius: 6,
                       flexShrink: 0,
                     }}
-                    onMouseOver={e => (e.currentTarget.style.backgroundColor = '#00cc77')}
-                    onMouseOut={e => (e.currentTarget.style.backgroundColor = '#00ff99')}
+                    onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#00cc77')}
+                    onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#00ff99')}
                   >
                     Connect
                   </button>
                 </div>
               </div>
             </div>
-          ) : 
+          ) : (
             <button
               type="submit"
               style={{
@@ -185,22 +189,24 @@ export default function App() {
                 border: 'none',
                 fontFamily: "'PressStart2P', monospace",
                 fontSize: 14,
-                      padding: '10px 20px',
+                padding: '10px 20px',
                 cursor: 'pointer',
                 transition: 'background-color 0.2s',
-                      borderRadius: 6,
+                borderRadius: 6,
                 flexShrink: 0,
-                  }}
-                    onMouseOver={e => (e.currentTarget.style.backgroundColor = '#00cc77')}
-                    onMouseOut={e => (e.currentTarget.style.backgroundColor = '#00ff99')}
-                  >
-                    Connect
-                  </button>}
+              }}
+              onMouseOver={(e) => (e.currentTarget.style.backgroundColor = '#00cc77')}
+              onMouseOut={(e) => (e.currentTarget.style.backgroundColor = '#00ff99')}
+            >
+              Connect
+            </button>
+          )}
         </form>
       </div>
     );
   }
 
+  // UI cuando ya tiene rol
   if (role === 'game') {
     return <GameView ws={ws.current} userID={userID} playerName={playerName} playerColor={playerColor} />;
   }
