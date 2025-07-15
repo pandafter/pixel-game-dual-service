@@ -1,0 +1,123 @@
+@import url('https://fonts.googleapis.com/css2?family=Press+Start+2P&display=swap');
+
+@font-face {
+  font-family: 'PressStart2P';
+  src: url('https://fonts.gstatic.com/s/pressstart2p/v12/e3t4euO8T-267oIAQAu6jDQyK1zJv_xHpg.ttf') format('truetype');
+}
+
+:root, html {
+  touch-action: none;
+  -ms-touch-action: none;
+  -webkit-touch-callout: none;
+  
+}
+
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: 'PressStart2P', monospace;
+  background-color: #0d0d0d;
+  color: #ffffff;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  /* Cambié height a min-height */
+  min-height: 50vh;
+  /* Añadí padding para evitar que toque bordes */
+  box-sizing: border-box;
+  touch-action: none;
+  -ms-touch-action: none;
+  -webkit-touch-callout: none;
+}
+
+
+.login-container {
+  text-align: center;
+  padding: 20px;
+  border: 3px solid #00ff99;
+  background: #1b1b1b;
+  width: 90%;
+  max-width: 400px;
+}
+
+.login-form input {
+  width: 80%;
+  font-family: inherit;
+  padding: 10px;
+  margin: 15px 0;
+  font-size: 14px;
+  background-color: #000;
+  border: 2px solid #00ff99;
+  color: #fff;
+}
+
+.login-form button {
+  font-family: inherit;
+  font-size: 14px;
+  padding: 10px 20px;
+  background-color: #00ff99;
+  color: #000;
+  border: none;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.login-form button:hover {
+  background-color: #00cc77;
+}
+
+.loading {
+  font-size: 14px;
+  color: #00ff99;
+}
+
+.game-canvas canvas {
+  image-rendering: pixelated;
+  border: 4px solid #00ff99;
+}
+
+@media (orientation: portrait) and (max-width: 768px) {
+  body::before {
+    content: "Por favor gira tu dispositivo para modo horizontal";
+    position: fixed;
+    top: 0; left: 0; right: 0; bottom: 0;
+    background: #0d0d0d;
+    color: #00ff99;
+    font-family: 'PressStart2P', monospace;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    text-align: center;
+    padding: 20px;
+    z-index: 9999;
+    font-size: 1.2rem;
+  }
+  
+  /* Opcionalmente ocultar todo lo demás */
+  .login-container {
+    display: none;
+  }
+}
+
+/* Para móviles en modo horizontal */
+@media (orientation: landscape) and (max-width: 768px) {
+  .login-container {
+    width: 70%;
+    max-width: none;
+    padding: 20px; /* Reducido para no ser tan alto */
+    max-height: 90vh; /* Limitar alto máximo para que no pase de la pantalla */
+    overflow-y: hidden; /* Scroll vertical si hay overflow */
+    box-sizing: border-box;
+  }
+
+  .login-form input {
+    width: 60%;
+    font-size: 16px;
+  }
+
+  .login-form button {
+    font-size: 16px;
+    padding: 12px 30px;
+  }
+}
