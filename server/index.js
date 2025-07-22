@@ -4,7 +4,6 @@ const http = require('http');
 const server = http.createServer();
 const wss = new WebSocket.Server({ server });
 
-// userID -> { game: ws, players: Map<playerID, { ws, name, color }> }
 const sessions = {};
 
 wss.on('connection', (ws) => {
@@ -28,11 +27,9 @@ wss.on('connection', (ws) => {
         sessions[userID] ||= { players: new Map() };
 
         if (!isMobile && !sessions[userID].game) {
-          // GAME CONNECTION
           sessions[userID].game = ws;
           assignedRole = 'game';
 
-          // Enviar lista de jugadores actuales
           const currentPlayers = Array.from(sessions[userID].players.entries()).map(([id, info]) => ({
             playerID: id,
             playerName: info.name,
@@ -44,7 +41,6 @@ wss.on('connection', (ws) => {
             players: currentPlayers,
           }));
         } else if (isMobile && playerID) {
-          // CONTROL CONNECTION
           sessions[userID].players.set(playerID, {
             ws,
             name: playerName,
@@ -52,7 +48,6 @@ wss.on('connection', (ws) => {
           });
           assignedRole = 'control';
 
-          // Notificar al GAME
           const gameWS = sessions[userID].game;
           if (gameWS && gameWS.readyState === WebSocket.OPEN) {
             gameWS.send(JSON.stringify({
@@ -67,7 +62,6 @@ wss.on('connection', (ws) => {
           return ws.close();
         }
 
-        // Confirmación de rol
         ws.send(JSON.stringify({ action: 'role', role: assignedRole, playerID }));
         console.log(`✅ ${assignedRole} conectado | session: ${userID} | playerID: ${playerID || '-'}`);
       }
@@ -78,13 +72,49 @@ wss.on('connection', (ws) => {
         const gameWS = sessions[userID]?.game;
         if (gameWS && gameWS.readyState === WebSocket.OPEN) {
           const playerInfo = sessions[userID].players.get(playerID);
+
           gameWS.send(JSON.stringify({
             action: 'move',
             playerID,
-            directions: data.directions,
+            directions: data.directions || [],
+            x: data.x || 0,
+            y: data.y || 0,
+            angle: typeof data.angle === 'number' ? data.angle : null,
             playerName: playerInfo?.name || playerID,
             playerColor: playerInfo?.color || '#00ff99',
           }));
+        }
+      }
+
+      else if (data.action === 'shoot') {
+          if (!userID || !playerID) return;
+
+          const gameWS = sessions[userID]?.game;
+          if (gameWS && gameWS.readyState === WebSocket.OPEN) {
+            const playerInfo = sessions[userID].players.get(playerID);
+
+            gameWS.send(JSON.stringify({
+              action: 'shoot',
+              playerID,
+              x: data.x || 0,
+              y: data.y || 0,
+              angle: typeof data.angle === 'number' ? data.angle : 0,
+              playerName: playerInfo?.name || playerID,
+              playerColor: playerInfo?.color || '#00ff99',
+            }));
+          }
+        }
+
+
+      else if (data.action === 'request_all_players') {
+        const gameWS = sessions[userID]?.game;
+        if (assignedRole === 'game' && gameWS === ws) {
+          const players = Array.from(sessions[userID].players.entries()).map(([id, info]) => ({
+            playerID: id,
+            playerName: info.name,
+            playerColor: info.color,
+          }));
+          ws.send(JSON.stringify({ action: 'existing_players', players }));
         }
       }
 
@@ -113,7 +143,6 @@ wss.on('connection', (ws) => {
       }
     }
 
-    // Eliminar sesión si está vacía
     if (!session.game && session.players.size === 0) {
       delete sessions[userID];
       console.log(`🗑️ Sesión eliminada: ${userID}`);

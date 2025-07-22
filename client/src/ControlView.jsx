@@ -3,6 +3,9 @@ import { useState, useEffect, useRef } from 'react';
 
 export default function ControlView({ ws, userID }) {
   const [controls, setControls] = useState({ left: false, right: false, jump: false });
+  const [joystickData, setJoystickData] = useState({ x: 0, y: 0, angle: 0 });
+  const [shootPressed, setShootPressed] = useState(false);
+
   const pressedRef = useRef({ left: false, right: false, jump: false });
   const jumpRef = useRef(null);
   const shootRef = useRef(null);
@@ -44,11 +47,14 @@ export default function ControlView({ ws, userID }) {
     ws.send(JSON.stringify({
       action: 'move',
       directions,
+      x: joystickData.x,
+      y: joystickData.y,
+      angle: joystickData.angle,
       userID,
     }));
 
     if (navigator.vibrate) navigator.vibrate(10);
-  }, [controls, ws, userID]);
+  }, [controls, ws, joystickData]);
 
   // Botones táctiles
   useEffect(() => {
@@ -107,7 +113,7 @@ export default function ControlView({ ws, userID }) {
     const threshold = 0.05;
     updateControl('left', x < -threshold);
     updateControl('right', x > threshold);
-    // Puedes guardar `angle` si después lo usas para rotar / disparar
+    setJoystickData({ x, y, angle });
   };
 
   return (
@@ -125,12 +131,32 @@ export default function ControlView({ ws, userID }) {
             className={`action-btn ${controls.jump ? 'active' : ''}`}
             style={{ backgroundImage: 'url(/assets/boton-salto.png)' }}
           />
-          <button
-            ref={shootRef}
-            className="action-btn"
-            style={{ backgroundImage: 'url(/assets/boton-disparo.png)' }}
-            // Aquí podrías activar lógica con onTouchStart/onClick en el futuro
-          />
+            <button
+              ref={shootRef}
+              className={`action-btn ${shootPressed ? 'active' : ''}`}
+              style={{ backgroundImage: 'url(/assets/boton-disparo.png)' }}
+              onTouchStart={() => {
+                setShootPressed(true);
+                console.log("📤 Disparo enviado", userID);
+                if (!userID) {
+                  console.warn("❌ userID no está definido al disparar");
+                  return;
+                }
+                if (ws) {
+                  ws.send(JSON.stringify({
+                    action: 'shoot',
+                    userID,
+                    angle: joystickData.angle,
+                  }));
+                }
+              }}
+
+              onTouchEnd={() => {
+                setShootPressed(false);
+              }}
+            />
+
+
         </div>
       </div>
     </div>

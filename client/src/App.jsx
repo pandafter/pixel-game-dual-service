@@ -53,7 +53,7 @@ export default function App() {
     if (!submitted) return;
 
     try {
-      ws.current = new WebSocket('ws://192.168.137.37:3001');
+      ws.current = new WebSocket('ws://192.168.1.14:3001');
 
       ws.current.onopen = () => {
         console.log('✅ WebSocket opened');
@@ -211,7 +211,7 @@ export default function App() {
     return <GameView ws={ws.current} userID={userID} playerName={playerName} playerColor={playerColor} />;
   }
 
-  if (role === 'control') {
+  if (role === 'control' && userID) {
     return <ControlView ws={ws.current} userID={userID} />;
   }
 

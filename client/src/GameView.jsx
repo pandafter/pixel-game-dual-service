@@ -5,6 +5,10 @@ export default function GameView({ ws, userID }) {
   const containerRef = useRef(null);
   const playersRef = useRef({});
   const sheetsRef = useRef({});
+  const weaponTextureRef = useRef(null);
+  const projectilesRef = useRef([]);
+
+
 
   const GRAVITY = 0.25;
   const MOVE_SPEED = 4;
@@ -33,13 +37,29 @@ export default function GameView({ ws, userID }) {
       sprite.play();
     };
 
+
+    const loadWeaponSprite = (onComplete) => {
+      const image = new Image();
+      image.src = `/assets/arma.png?v=${Date.now()}`;
+      image.onload = () => {
+        weaponTextureRef.current = PIXI.Texture.from(image);
+        onComplete();
+      };
+      image.onerror = () => {
+        console.error("❌ Error al cargar el arma");
+        onComplete();
+      };
+    };
+
+
     const createPlayerOnCanvas = ({ id, name, color }) => {
-      if (!sheetsRef.current.idle) {
-        console.warn("Idle spritesheet not loaded yet, cannot create player.");
+      if (!sheetsRef.current.idle || !weaponTextureRef.current) {
+        console.warn("Spritesheet o arma no listos");
         return;
       }
+
       if (playersRef.current[id]) {
-        console.log(`Player ${id} already exists.`);
+        console.log(`Player ${id} ya existe`);
         return;
       }
 
@@ -62,9 +82,20 @@ export default function GameView({ ws, userID }) {
       nameText.y = sprite.y - sprite.height / 2 - 10;
       app.stage.addChild(nameText);
 
+      // 👉 Crear el arma y agregarla como hijo del sprite
+      const weapon = new PIXI.Sprite(weaponTextureRef.current);
+      weapon.anchor.set(0.1, 0.5); // ancla cerca del mango
+
+      weapon.x = 30; // posición relativa al sprite del jugador
+      weapon.y = 10;
+      weapon.scale.set(1.0); // escala pequeña
+
+      sprite.addChild(weapon);
+
       playersRef.current[id] = {
         sprite,
         nameText,
+        weapon,
         velocity: { x: 0, y: 0 },
         inputs: { left: false, right: false, jump: false },
         onGround: false,
@@ -72,8 +103,10 @@ export default function GameView({ ws, userID }) {
         wasJumping: false,
         currentAnim: 'idle',
         facingRight: true,
+        angle: 0,
       };
     };
+
 
     const chooseAnim = ({ left, right }) => {
       if (left) return 'izquierda';
@@ -113,10 +146,6 @@ export default function GameView({ ws, userID }) {
       };
     };
 
-
-
-
-
     let loadedCount = 0;
     const onAssetLoaded = () => {
       loadedCount++;
@@ -130,12 +159,18 @@ export default function GameView({ ws, userID }) {
 
             switch (data.action) {
               case 'new_player':
-                createPlayerOnCanvas({
-                  id: data.playerID,
-                  name: data.playerName,
-                  color: data.playerColor,
+                loadWeaponSprite(() => {
+                  console.log("✅ Arma cargada");
+                  createPlayerOnCanvas({
+                    id: data.playerID,
+                    name: data.playerName,
+                    color: data.playerColor,
+                  });
                 });
                 break;
+
+              
+
 
               case 'move': {
                 const p = playersRef.current[data.playerID];
@@ -144,10 +179,57 @@ export default function GameView({ ws, userID }) {
                     left: data.directions.includes('left'),
                     right: data.directions.includes('right'),
                     jump: data.directions.includes('jump'),
+                    x: data.x || 0,
+                    y: data.y || 0,
                   };
+
+                  if (typeof data.angle === 'number') {
+                    p.angle = data.angle;
+                  }
                 }
                 break;
               }
+
+              case 'shoot': {
+                console.log("📨 Señal de disparo recibida del jugador:", data.playerID);
+
+                const p = playersRef.current[data.playerID];
+
+                if (p && p.weapon) {
+                  const weapon = p.weapon;
+                  const weaponSprite = weapon; // si ya es el sprite
+
+                  // Coordenadas globales de la punta del arma (30px adelante del pivote)
+                  const weaponGlobal = weaponSprite.getGlobalPosition();
+                  const angle = weaponSprite.rotation; // ángulo real del arma
+
+                  const offset = 30; // distancia desde el centro del arma a la punta
+                  const bulletX = weaponGlobal.x + Math.cos(angle) * offset;
+                  const bulletY = weaponGlobal.y + Math.sin(angle) * offset;
+
+                  const speed = 15;
+                  const vx = Math.cos(angle) * speed;
+                  const vy = Math.sin(angle) * speed;
+
+                  const bullet = PIXI.Sprite.from('/assets/bala.png');
+                  bullet.anchor.set(0.5);
+                  bullet.scale.set(0.06);
+                  bullet.x = bulletX;
+                  bullet.y = bulletY;
+                  bullet.rotation = angle;
+                  bullet.vx = vx;
+                  bullet.vy = vy;
+
+                  app.stage.addChild(bullet);
+                  projectilesRef.current.push(bullet);
+
+                } else {
+                  console.warn("⚠️ No se encontró jugador o arma para el disparo");
+                }
+
+                break;
+              }
+
 
               case 'player_disconnect': {
                 const p = playersRef.current[data.playerID];
@@ -173,20 +255,20 @@ export default function GameView({ ws, userID }) {
     app.ticker.add(() => {
       if (!mounted || !sheetsRef.current.idle) return;
 
+      // Actualizar todos los jugadores
       for (const id in playersRef.current) {
         const p = playersRef.current[id];
         const { sprite, nameText, velocity, inputs } = p;
 
+        // Seleccionar la animación adecuada
         const nextAnim = chooseAnim(inputs);
 
-        // No flipping. Las animaciones ya están mirando en su dirección correcta.
         if (nextAnim === 'izquierda') {
           p.facingRight = false;
         } else if (nextAnim === 'derecha') {
           p.facingRight = true;
         }
 
-        // No cambiar scale.x en idle — conserva dirección previa
         if (nextAnim !== p.currentAnim) {
           const textures = sheetsRef.current[nextAnim];
           if (textures?.length) {
@@ -195,16 +277,30 @@ export default function GameView({ ws, userID }) {
           }
         }
 
-        // Ajuste visual según orientación (solo si los sprites requieren flipping)
-        // sprite.scale.x = p.facingRight ? Math.abs(sprite.scale.x) : -Math.abs(sprite.scale.x);
-
+        // Movimiento horizontal
         velocity.x = inputs.left
           ? -MOVE_SPEED
           : inputs.right
           ? MOVE_SPEED
           : 0;
+
         sprite.x += velocity.x;
 
+        // Rotación y flip del arma
+        if (p.weapon) {
+          const angle = Math.atan2(p.inputs.y, p.inputs.x);
+          if (!isNaN(angle)) {
+            p.angle = angle;
+            p.weapon.rotation = angle;
+          }
+
+          const flip = Math.sign(Math.cos(p.angle));
+          p.weapon.scale.y = flip >= 0
+            ? Math.abs(p.weapon.scale.y)
+            : -Math.abs(p.weapon.scale.y);
+        }
+
+        // Sistema de salto
         if (inputs.jump) {
           if (p.onGround && !p.wasJumping) {
             velocity.y = JUMP_FORCE_INITIAL;
@@ -218,6 +314,7 @@ export default function GameView({ ws, userID }) {
         }
         p.wasJumping = inputs.jump;
 
+        // Gravedad y caída
         velocity.y += GRAVITY;
         sprite.y += velocity.y;
 
@@ -231,13 +328,32 @@ export default function GameView({ ws, userID }) {
           p.onGround = false;
         }
 
+        // Limitar dentro del escenario horizontalmente
         const halfW = sprite.width / 2;
         sprite.x = Math.max(halfW, Math.min(app.screen.width - halfW, sprite.x));
 
+        // Actualizar posición del texto de nombre
         nameText.x = sprite.x;
         nameText.y = sprite.y - sprite.height / 2 - 10;
       }
+
+      // Mover balas
+      for (let i = projectilesRef.current.length - 1; i >= 0; i--) {
+        const bullet = projectilesRef.current[i];
+        bullet.x += bullet.vx;
+        bullet.y += bullet.vy;
+
+        // Eliminar si se sale de pantalla
+        if (
+          bullet.x < -50 || bullet.x > app.screen.width + 50 ||
+          bullet.y < -50 || bullet.y > app.screen.height + 50
+        ) {
+          app.stage.removeChild(bullet);
+          projectilesRef.current.splice(i, 1);
+        }
+      }
     });
+
 
     return () => {
       mounted = false;
