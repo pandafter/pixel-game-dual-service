@@ -1,6 +1,27 @@
 const WebSocket = require('ws');
 const http = require('http');
 
+function generateUniqueColor(userID) {
+  const session = sessions[userID];
+  const usedColors = new Set(
+    Array.from(session.players.values()).map(p => p.color)
+  );
+
+  const palette = [
+    '#00ff99', '#ff0055', '#0099ff', '#ffff33',
+    '#ff9900', '#cc00ff', '#00ffff', '#66ff66',
+    '#ff66cc', '#9999ff', '#ffcc66', '#00cc99'
+  ];
+
+  for (const color of palette) {
+    if (!usedColors.has(color)) return color;
+  }
+
+  // Fallback aleatorio si se acaban los colores predefinidos
+  return '#' + Math.floor(Math.random() * 16777215).toString(16).padStart(6, '0');
+}
+
+
 const server = http.createServer();
 const wss = new WebSocket.Server({ server });
 
@@ -22,9 +43,11 @@ wss.on('connection', (ws) => {
         playerID = data.playerID || null;
         const isMobile = data.isMobile;
         const playerName = data.playerName || playerID;
-        const playerColor = data.playerColor || '#00ff99';
 
         sessions[userID] ||= { players: new Map() };
+
+        const playerColor = generateUniqueColor(userID);
+
 
         if (!isMobile && !sessions[userID].game) {
           sessions[userID].game = ws;

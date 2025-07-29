@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@pixi/assets": "^7.4.3",
+    "pixi-sound": "^3.0.4",
     "pixi.js": "^6.5.10",
     "react": "^19.1.0",
     "react-dom": "^19.1.0"

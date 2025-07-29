@@ -53,7 +53,7 @@ export default function App() {
     if (!submitted) return;
 
     try {
-      ws.current = new WebSocket('ws://192.168.1.14:3001');
+      ws.current = new WebSocket('ws://192.168.1.18:3001');
 
       ws.current.onopen = () => {
         console.log('✅ WebSocket opened');
