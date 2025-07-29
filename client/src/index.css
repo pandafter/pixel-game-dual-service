@@ -27,3 +27,9 @@ canvas {
   display: block;
 }
 
+.intro-container {
+  background: black;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}

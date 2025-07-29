@@ -7,6 +7,8 @@ import './index.css';
 export default function App() {
   const isMobile = detectDevice();
 
+  // 👇 Hook al inicio SIEMPRE
+  const [showIntro, setShowIntro] = useState(true);
   const [userID, setUserID] = useState(localStorage.getItem('userID') || '');
   const [playerName, setPlayerName] = useState(localStorage.getItem('playerName') || '');
 
@@ -19,8 +21,6 @@ export default function App() {
   };
 
   const [playerColor, setPlayerColor] = useState(getValidColor());
-
-  // Generar un playerID solo si es móvil (y una sola vez)
   const [playerID] = useState(() => {
     if (isMobile) {
       return 'player-' + Math.random().toString(36).substr(2, 9);
@@ -31,6 +31,12 @@ export default function App() {
   const [submitted, setSubmitted] = useState(false);
   const [role, setRole] = useState(null);
   const ws = useRef(null);
+
+  // 👇 Ocultar intro tras 8s como fallback
+  useEffect(() => {
+    const timer = setTimeout(() => setShowIntro(false), 8000);
+    return () => clearTimeout(timer);
+  }, []);
 
   const handleSubmit = (e) => {
     e.preventDefault();
@@ -49,6 +55,7 @@ export default function App() {
     setSubmitted(true);
   };
 
+  // 👇 Conectar WebSocket cuando ya se haya hecho submit
   useEffect(() => {
     if (!submitted) return;
 
@@ -61,7 +68,7 @@ export default function App() {
           JSON.stringify({
             action: 'join',
             userID,
-            playerID: isMobile ? playerID : undefined, // SOLO móviles lo mandan
+            playerID: isMobile ? playerID : undefined,
             isMobile,
             playerName: isMobile ? playerName : '',
             playerColor: isMobile ? playerColor : '#00ff99',
@@ -73,7 +80,6 @@ export default function App() {
         try {
           const data = JSON.parse(event.data);
           console.log('📩 Message from server:', data);
-
           if (data.action === 'role') {
             setRole(data.role.trim());
           }
@@ -98,7 +104,27 @@ export default function App() {
     };
   }, [submitted]);
 
-  // UI del formulario de login
+  // 👇 Mostrar video de introducción
+  if (showIntro && !isMobile) {
+    return (
+      <div className="intro-container" style={{ width: '100vw', height: '100vh', overflow: 'hidden' }}>
+        <video
+          src="/resources/intro.mp4"
+          autoPlay
+          muted
+          playsInline
+          onEnded={() => setShowIntro(false)}
+          style={{
+            width: '100%',
+            height: '100%',
+            objectFit: 'cover',
+          }}
+        />
+      </div>
+    );
+  }
+
+  // 👇 Mostrar formulario
   if (!submitted) {
     return (
       <div className="login-container">
@@ -113,15 +139,7 @@ export default function App() {
           />
           {isMobile ? (
             <div style={{ marginTop: 12 }}>
-              <label
-                style={{
-                  display: 'block',
-                  marginBottom: 6,
-                  fontWeight: '600',
-                  fontSize: 14,
-                  color: '#00ff99',
-                }}
-              >
+              <label style={{ display: 'block', marginBottom: 6, fontWeight: 600, fontSize: 14, color: '#00ff99' }}>
                 Player name (optional)
               </label>
               <input
@@ -139,25 +157,8 @@ export default function App() {
                   marginBottom: 16,
                 }}
               />
-
-              <div
-                style={{
-                  display: 'flex',
-                  flexDirection: 'column',
-                  alignItems: 'center',
-                  gap: 6,
-                  marginBottom: 20,
-                }}
-              >
-                <div
-                  style={{
-                    display: 'flex',
-                    alignItems: 'center',
-                    gap: 12,
-                    justifyContent: 'center',
-                    width: '100%',
-                  }}
-                >
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: 6, marginBottom: 20 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: 12, justifyContent: 'center', width: '100%' }}>
                   <button
                     type="submit"
                     style={{
@@ -206,7 +207,7 @@ export default function App() {
     );
   }
 
-  // UI cuando ya tiene rol
+  // 👇 Mostrar GameView o ControlView según el rol
   if (role === 'game') {
     return <GameView ws={ws.current} userID={userID} playerName={playerName} playerColor={playerColor} />;
   }
@@ -215,6 +216,7 @@ export default function App() {
     return <ControlView ws={ws.current} userID={userID} />;
   }
 
+  // 👇 Estado de espera
   return (
     <div className="loading">
       <p>Connecting...</p>
